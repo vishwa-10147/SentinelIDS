@@ -1,0 +1,90 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# Logs and Data
+logs/*.csv
+logs/*.txt
+logs/.flow_pipeline_lock.txt
+!logs/.gitkeep
+
+# Training session files (temporary)
+datasets/flow_training/flow_session_*.csv
+
+# Empty directories / notes
+coms/
+
+# Models (keep models in repo for now, uncomment if too large)
+# models/*.pkl
+# Note: Models are included by default. Uncomment above line if models exceed GitHub's 100MB file limit.
+
+# Live Data (sensitive network data)
+live_data/*.csv
+live_data/*.tsv
+live_data/logs/
+!live_data/.gitkeep
+
+# Reports
+reports/*.pdf
+reports/*.csv
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*.ipynb
+
+# Environment variables
+.env
+.env.local
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# Project specific
+.pytest_cache/
+*.log
