@@ -136,6 +136,7 @@ iot-ids-ml-dashboard/
 ├── requirements.txt                    # Python dependencies
 ├── run_dashboard.ps1                  # One-click dashboard launcher
 ├── auto_update_devices.ps1             # Auto device discovery script
+├── LICENSE                            # MIT License
 └── README.md                          # This file
 ```
 
@@ -404,6 +405,36 @@ python src/run_flow_soc_pipeline.py
 
 ---
 
+## 🔐 Data Privacy & Ethics
+
+### **Important Notes:**
+- This project is designed for **controlled lab environments** only
+- All sample captures are from **isolated test networks**
+- No real production network data is included in this repository
+- Captures contain **no personally identifiable information (PII)**
+
+### **Ethical Use:**
+- ⚠️ **Network monitoring requires proper authorization**
+- Only use on networks you own or have explicit permission to monitor
+- Comply with local laws regarding network monitoring (e.g., GDPR, CCPA, Computer Fraud and Abuse Act)
+- This tool is for **educational and research purposes only**
+
+### **For Production/Real-World Use:**
+- Implement proper data anonymization techniques
+- Add user authentication and role-based access controls
+- Encrypt sensitive log files and network captures
+- Follow your organization's security and privacy policies
+- Obtain necessary approvals from network administrators
+- Consider legal implications of packet inspection in your jurisdiction
+
+### **Researcher Responsibilities:**
+- Use only on authorized test networks
+- Anonymize any data before sharing or publication
+- Respect privacy of network users
+- Follow institutional review board (IRB) guidelines if applicable
+
+---
+
 ## ⚠️ Limitations (Important)
 
 1. **Network Visibility:**
@@ -442,14 +473,23 @@ python src/run_flow_soc_pipeline.py
 ## 👨‍💻 Author
 
 **Vishwa**  
-Department: Computer Science / Cybersecurity  
-Project: IoT IDS ML Dashboard
+Department of Computer Science / Cybersecurity
+
+This project was developed as part of academic research in network security and machine learning applications for intrusion detection systems.
 
 ---
 
 ## 📌 License
 
-This project is for **academic and research use**.
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+### What this means:
+- ✅ Free to use, modify, and distribute
+- ✅ Can be used in commercial projects
+- ✅ Must include copyright notice and license
+- ✅ Provided "as-is" without warranty
+
+**Copyright (c) 2025 Vishwa**
 
 ---
 
@@ -571,8 +611,6 @@ pytest tests/ -v
 
 ---
 
----
-
 ## 📦 Project Files
 
 ### Essential Files:
@@ -580,6 +618,7 @@ pytest tests/ -v
 - `requirements.txt` - Python dependencies
 - `run_dashboard.ps1` - One-click launcher
 - `run_tests.ps1` - Test runner
+- `LICENSE` - MIT License
 
 ### Documentation:
 - See `DOCUMENTATION_INDEX.md` for complete list
@@ -592,12 +631,52 @@ pytest tests/ -v
 
 ## 🔗 GitHub Repository
 
-**Repository:** https://github.com/vishwa-10147/iot-ids-ml-dashboard
+**Repository:** [https://github.com/vishwa-10147/iot-ids-ml-dashboard](https://github.com/vishwa-10147/iot-ids-ml-dashboard)
 
 **Setup Instructions:** See `GITHUB_PUSH_INSTRUCTIONS.md` or `QUICK_GIT_COMMANDS.md`
 
 ---
 
-**Last Updated:** January 2026  
+## 📖 Citation
+
+If you use this project in your research, please cite:
+
+```bibtex
+@software{vishwa2025iot_ids,
+  author = {Vishwa},
+  title = {IoT IDS + SOC Dashboard: ML-Based Real-Time Intrusion Detection System},
+  year = {2025},
+  url = {https://github.com/vishwa-10147/iot-ids-ml-dashboard},
+  note = {Research project with paper submission pending}
+}
+```
+
+*Note: Citation details will be updated upon paper publication.*
+
+---
+
+## 🙏 Acknowledgments
+
+This project uses the following open-source tools and datasets:
+- **TON_IoT Dataset** - University of New South Wales (UNSW)
+- **Scikit-learn** - Machine learning library
+- **Streamlit** - Dashboard framework
+- **Wireshark/Tshark** - Network analysis tools
+
+---
+
+**Last Updated:** January 2025  
 **Version:** 1.0.0  
-**Status:** ✅ Production Ready (with authentication recommended)
+**Status:** ✅ Active Research Project
+
+---
+
+## 📧 Contact
+
+For questions, suggestions, or collaboration inquiries related to this research:
+- Open an issue on GitHub
+- Check the documentation in the `docs/` folder
+
+---
+
+**⚠️ Disclaimer:** This software is provided for educational and research purposes only. Users are responsible for ensuring compliance with all applicable laws and regulations regarding network monitoring and data collection in their jurisdiction.
