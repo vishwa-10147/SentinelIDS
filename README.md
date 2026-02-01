@@ -1,7 +1,7 @@
 # IoT IDS + SOC Dashboard (ML-Based)  
 ### Real-Time Packet + Flow IDS Monitoring with SOC Tickets + Device Identification
 
-This project is a **Machine Learning based Intrusion Detection System (IDS)** with a **SOC-style Streamlit dashboard**.  
+This project is a **A Multi-Level Machine Learning–Based Intrusion Detection System for IoT Networks**.  
 It supports:
 
 ✅ Dataset-based IDS (TON_IoT)  
