@@ -4,10 +4,12 @@ import time
 import shutil
 import subprocess
 import joblib
+import psutil
 import pandas as pd
 import streamlit as st
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
+from streamlit_agraph import agraph, Node, Edge, Config
 
 # ==========================================================
 # CONFIG: DEVICE NAMING (Manual Override)
@@ -58,9 +60,38 @@ TICKETS_PATH = "logs/soc_tickets.csv"
 # ==========================================================
 # Streamlit Setup
 # ==========================================================
-st.set_page_config(page_title="IoT IDS Dashboard", layout="wide")
-st.title("IoT Intrusion Detection System (ML-Based)")
+st.set_page_config(page_title="IoT IDS Dashboard - SOC Premium", layout="wide", initial_sidebar_state="expanded")
+st.title("🛡️ IoT Intrusion Detection System (ML-Based)")
 st.write("Dataset IDS + Live Packet IDS + Flow IDS Threat Scoring Dashboard (SOC Style)")
+
+# ==========================================================
+# Premium SOC Sidebar
+# ==========================================================
+with st.sidebar:
+    st.header("💻 System Health")
+    c_cpu, c_mem = st.columns(2)
+    cpu_usage = psutil.cpu_percent()
+    mem_usage = psutil.virtual_memory().percent
+    c_cpu.metric("CPU", f"{cpu_usage}%")
+    c_mem.metric("RAM", f"{mem_usage}%")
+    
+    st.divider()
+    st.header("📈 SOC Status")
+    st.info("System: ACTIVE")
+    st.success("IDS Engine: RUNNING")
+    
+    st.divider()
+    st.header("🛠️ Dashboard Controls")
+    if st.button("🚀 Clear All Logs"):
+        # Logic to clear all logs
+        for log in [LOG_PATH, LIVE_LOG_PATH, INCIDENTS_LOG_PATH, FLOW_FINAL_PATH, FLOW_INCIDENTS_PATH, TICKETS_PATH]:
+            if os.path.exists(log):
+                os.remove(log)
+        st.success("All logs cleared!")
+        st.rerun()
+
+    st.divider()
+    st.write("v1.1.0-Premium")
 
 # ==========================================================
 # Session State
@@ -386,10 +417,11 @@ def load_incidents():
 # ==========================================================
 # Tabs
 # ==========================================================
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "📘 Dataset IDS (TON_IoT)",
     "📡 Live Packet IDS (Real-Time)",
-    "📊 Flow IDS Monitoring (Level 4/5)"
+    "📊 Flow IDS Monitoring",
+    "🌐 Global SOC Visuals"
 ])
 
 # ==========================================================
@@ -613,7 +645,7 @@ with tab2:
 # TAB 3: FLOW IDS Monitoring (Level 4/5)
 # ==========================================================
 with tab3:
-    st.subheader("📊 Flow IDS Monitoring (Level 4/5 - SOC View)")
+    st.subheader(" Flow IDS Monitoring (SOC View)")
     st.write("Flow behavior analysis + Flow ML prediction + Fusion scoring + Level 5 Advanced rules.")
 
     auto_update_device_inventory(interval_seconds=60)
@@ -967,3 +999,97 @@ with tab3:
 
                 st.success(f"✅ Updated Ticket: {selected_ticket}")
                 st.rerun()
+
+# ==========================================================
+# TAB 4: Global SOC Visuals & Graph
+# ==========================================================
+with tab4:
+    st.subheader("🌐 Global SOC Visual Analytics")
+    
+    col_v1, col_v2 = st.columns([2, 1])
+    
+    with col_v1:
+        st.write("### 🕸️ Interactive Network Traffic Graph")
+        st.write("Visualizing real-time connections between devices (Top flows)")
+        
+        # Load flow data for graph
+        if os.path.exists(FLOW_FINAL_PATH):
+            flow_data = safe_read_csv(FLOW_FINAL_PATH)
+            if not flow_data.empty:
+                # Get top flows to avoid graph clutter
+                top_flows = flow_data.sort_values("final_flow_score", ascending=False).head(20)
+                
+                nodes = []
+                edges = []
+                node_set = set()
+                
+                device_map = load_device_name_map()
+                
+                for _, row in top_flows.iterrows():
+                    src = str(row["src_ip"])
+                    dst = str(row["dst_ip"])
+                    sev = str(row["final_severity"])
+                    
+                    if src not in node_set:
+                        nodes.append(Node(id=src, label=device_map.get(src, src), size=25, color="#00ff00"))
+                        node_set.add(src)
+                    
+                    if dst not in node_set:
+                        nodes.append(Node(id=dst, label=device_map.get(dst, dst), size=25, color="#0000ff"))
+                        node_set.add(dst)
+                    
+                    edge_color = "#666666"
+                    if sev == "CRITICAL": edge_color = "#ff0000"
+                    elif sev == "HIGH": edge_color = "#ffa500"
+                    
+                    edges.append(Edge(source=src, target=dst, label=sev, color=edge_color))
+                
+                config = Config(width=800, height=600, directed=True, nodeHighlightBehavior=True, highlightColor="#F7A7A6", staticGraphWithDragAndDrop=True)
+                
+                agraph(nodes=nodes, edges=edges, config=config)
+            else:
+                st.info("No flow data available for graph.")
+        else:
+            st.info("Run Flow SOC Pipeline to generate graph data.")
+
+    with col_v2:
+        st.write("### 📄 SOC Reporting")
+        st.write("Generate a professional PDF summary of recent incidents and SOC status.")
+        
+        if st.button("📊 Generate PDF SOC Report", use_container_width=True):
+            with st.spinner("Generating PDF Report..."):
+                try:
+                    # Check if script exists
+                    report_script = "src/generate_pdf_report.py"
+                    if os.path.exists(report_script):
+                        result = subprocess.run(
+                            [sys.executable, report_script],
+                            capture_output=True,
+                            text=True,
+                            timeout=60
+                        )
+                        if result.returncode == 0:
+                            st.success("✅ PDF Report Generated: reports/SOC_Summary_Report.pdf")
+                            
+                            # Provide download button
+                            report_path = "reports/SOC_Summary_Report.pdf"
+                            if os.path.exists(report_path):
+                                with open(report_path, "rb") as f:
+                                    st.download_button(
+                                        label="⬇️ Download PDF Report",
+                                        data=f,
+                                        file_name="SOC_Summary_Report.pdf",
+                                        mime="application/pdf"
+                                    )
+                        else:
+                            st.error(f"❌ Report generation failed: {result.stderr[:200]}")
+                    else:
+                        st.error("❌ src/generate_pdf_report.py not found.")
+                except Exception as e:
+                    st.error(f"❌ Error: {e}")
+
+        st.divider()
+        st.write("### 🛡️ SOC Recommendations")
+        st.success("1. Monitor CRITICAL flows immediately.")
+        st.info("2. Update device inventory weekly.")
+        st.warning("3. Ensure firewall rules are synchronized.")

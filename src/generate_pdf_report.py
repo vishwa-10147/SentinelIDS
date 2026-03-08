@@ -1,175 +1,103 @@
 import os
 import pandas as pd
 from datetime import datetime
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 
-LIVE_LOG_PATH = "logs/live_detections.csv"
-INCIDENTS_LOG_PATH = "logs/incidents.csv"
-OUTPUT_DIR = "reports"
+# Paths
+TICKETS_PATH = "logs/soc_tickets.csv"
+FLOW_FINAL_PATH = "logs/live_flows_final.csv"
+OUTPUT_PATH = "reports/SOC_Summary_Report.pdf"
 
-def safe_read_csv(path):
-    try:
-        if os.path.exists(path):
-            # If file is empty (0 bytes), return empty DataFrame
-            if os.path.getsize(path) == 0:
-                return pd.DataFrame()
-            return pd.read_csv(path)
-    except Exception:
-        return pd.DataFrame()
-    return pd.DataFrame()
-
-
-def generate_pdf():
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    pdf_path = os.path.join(OUTPUT_DIR, f"IoT_IDS_Report_{ts}.pdf")
-
-    live_df = safe_read_csv(LIVE_LOG_PATH)
-    incidents_df = safe_read_csv(INCIDENTS_LOG_PATH)
-
-    c = canvas.Canvas(pdf_path, pagesize=A4)
-    width, height = A4
+def generate_report():
+    os.makedirs("reports", exist_ok=True)
+    
+    doc = SimpleDocTemplate(OUTPUT_PATH, pagesize=letter)
+    styles = getSampleStyleSheet()
+    elements = []
 
     # Title
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(50, height - 50, "IoT Intrusion Detection System (ML-Based) रिपोर्ट")
+    title_style = ParagraphStyle(
+        'TitleStyle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.hexColor("#1f77b4"),
+        alignment=1, # Center
+        spaceAfter=20
+    )
+    elements.append(Paragraph("IoT IDS SOC Summary Report", title_style))
+    elements.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+    elements.append(Spacer(1, 20))
 
-    c.setFont("Helvetica", 11)
-    c.drawString(50, height - 70, f"Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    # Executive Summary
+    elements.append(Paragraph("1. Executive Summary", styles['Heading2']))
+    
+    total_tickets = 0
+    high_severity_count = 0
+    if os.path.exists(TICKETS_PATH):
+        tickets = pd.read_csv(TICKETS_PATH)
+        total_tickets = len(tickets)
+        high_severity_count = len(tickets[tickets['severity'].isin(['HIGH', 'CRITICAL'])])
+    
+    summary_text = f"This report provides a summary of the Intrusion Detection System (IDS) status and Security Operations Center (SOC) activity. " \
+                   f"A total of {total_tickets} security tickets have been generated, with {high_severity_count} flagged as HIGH or CRITICAL severity."
+    elements.append(Paragraph(summary_text, styles['Normal']))
+    elements.append(Spacer(1, 20))
 
-    y = height - 110
-
-    # Summary
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(50, y, "1) Live Traffic Summary")
-    y -= 25
-
-    if live_df.empty:
-        c.setFont("Helvetica", 11)
-        c.drawString(50, y, "No live detection data found (logs/live_detections.csv missing).")
-        c.save()
-        return pdf_path
-
-    total_packets = len(live_df)
-    suspicious_packets = int((live_df["prediction"] == 1).sum()) if "prediction" in live_df.columns else 0
-    high_risk_packets = int((live_df.get("risk_score_%", 0) >= 80).sum()) if "risk_score_%" in live_df.columns else 0
-
-    c.setFont("Helvetica", 11)
-    c.drawString(60, y, f"Total Packets Analyzed: {total_packets}")
-    y -= 18
-    c.drawString(60, y, f"Suspicious Packets: {suspicious_packets}")
-    y -= 18
-    c.drawString(60, y, f"High Risk Packets (>=80% risk): {high_risk_packets}")
-    y -= 25
-
-    # Incidents
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(50, y, "2) Incident Timeline (Last 10)")
-    y -= 20
-
-    c.setFont("Helvetica", 10)
-    if incidents_df.empty:
-        c.drawString(60, y, "No incidents logged yet.")
-        y -= 15
+    # Recent High Severity Incidents
+    elements.append(Paragraph("2. Recent High-Severity Incidents", styles['Heading2']))
+    
+    if os.path.exists(TICKETS_PATH):
+        tickets = pd.read_csv(TICKETS_PATH)
+        high_tickets = tickets[tickets['severity'].isin(['HIGH', 'CRITICAL'])].tail(10)
+        
+        if not high_tickets.empty:
+            data = [["Ticket ID", "Timestamp", "Attacker IP", "Victim IP", "Severity"]]
+            for _, row in high_tickets.iterrows():
+                data.append([
+                    str(row.get('ticket_id', 'N/A')),
+                    str(row.get('timestamp', 'N/A'))[:19],
+                    str(row.get('attacker_ip', 'N/A')),
+                    str(row.get('victim_ip', 'N/A')),
+                    str(row.get('severity', 'N/A'))
+                ])
+            
+            t = Table(data)
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.hexColor("#1f77b4")),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            elements.append(t)
+        else:
+            elements.append(Paragraph("No high-severity incidents recorded.", styles['Normal']))
     else:
-        last10 = incidents_df.tail(10)
-        for _, row in last10.iterrows():
-            line = f"{row.get('timestamp')} | {row.get('incident_id')} | {row.get('severity')} | Susp={row.get('suspicious_packets')} | HighRisk={row.get('high_risk_packets')} | TopIP={row.get('top_suspicious_src_ip')}"
-            c.drawString(60, y, line[:110])
-            y -= 14
-            if y < 80:
-                c.showPage()
-                y = height - 60
-                c.setFont("Helvetica", 10)
+        elements.append(Paragraph("Ticket log file not found.", styles['Normal']))
 
-    y -= 10
+    elements.append(Spacer(1, 20))
 
-    # Device Inventory (Top 10)
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(50, y, "3) Top Devices (Inventory - Top 10)")
-    y -= 20
-
-    c.setFont("Helvetica", 10)
-    if "ip.src" in live_df.columns:
-        live_df["is_suspicious"] = (live_df["prediction"] == 1).astype(int)
-
-        device_summary = live_df.groupby("ip.src").agg(
-            total=("ip.src", "count"),
-            suspicious=("is_suspicious", "sum"),
-            avg_risk=("risk_score_%", "mean") if "risk_score_%" in live_df.columns else ("is_suspicious", "mean")
-        ).reset_index()
-
-        device_summary["suspicious_%"] = (device_summary["suspicious"] / device_summary["total"] * 100).round(2)
-        device_summary = device_summary.sort_values(["suspicious", "total"], ascending=False).head(10)
-
-        for _, row in device_summary.iterrows():
-            line = f"{row['ip.src']} | Total={row['total']} | Susp={row['suspicious']} | Susp%={row['suspicious_%']} | AvgRisk={round(row['avg_risk'],2)}"
-            c.drawString(60, y, line[:110])
-            y -= 14
-            if y < 80:
-                c.showPage()
-                y = height - 60
-                c.setFont("Helvetica", 10)
+    # Network Status
+    elements.append(Paragraph("3. Network Traffic Status", styles['Heading2']))
+    if os.path.exists(FLOW_FINAL_PATH):
+        flows = pd.read_csv(FLOW_FINAL_PATH)
+        total_flows = len(flows)
+        elements.append(Paragraph(f"Total analyzed network flows: {total_flows}", styles['Normal']))
     else:
-        c.drawString(60, y, "Device inventory not available (missing ip.src).")
-        y -= 15
-
-    y -= 10
-
-    # Top suspicious source IPs
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(50, y, "4) Top Suspicious Source IPs (Top 10)")
-    y -= 20
-
-    c.setFont("Helvetica", 10)
-    suspicious_only = live_df[live_df["prediction"] == 1] if "prediction" in live_df.columns else pd.DataFrame()
-    if suspicious_only.empty:
-        c.drawString(60, y, "No suspicious packets found.")
-        y -= 15
-    else:
-        top_src = suspicious_only["ip.src"].value_counts().head(10)
-        for ip, count in top_src.items():
-            c.drawString(60, y, f"{ip}  ->  {count} packets")
-            y -= 14
-            if y < 80:
-                c.showPage()
-                y = height - 60
-                c.setFont("Helvetica", 10)
-
-    y -= 10
-
-    # Top 5 high-risk packets
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(50, y, "5) Top 5 High-Risk Packets")
-    y -= 20
-
-    c.setFont("Helvetica", 10)
-    if "risk_score_%" in live_df.columns:
-        top_risk = live_df.sort_values("risk_score_%", ascending=False).head(5)
-        for _, row in top_risk.iterrows():
-            line = f"Src={row.get('ip.src')} -> Dst={row.get('ip.dst')} | Len={row.get('frame.len')} | Risk={row.get('risk_score_%')}% | Pred={row.get('prediction_label')}"
-            c.drawString(60, y, line[:110])
-            y -= 14
-            if y < 80:
-                c.showPage()
-                y = height - 60
-                c.setFont("Helvetica", 10)
-    else:
-        c.drawString(60, y, "Risk score not available.")
-        y -= 15
-
-    y -= 10
+        elements.append(Paragraph("Flow log file not found.", styles['Normal']))
 
     # Footer
-    c.setFont("Helvetica-Oblique", 9)
-    c.drawString(50, 40, "Report generated by IoT IDS Dashboard (Mini Project).")
+    elements.append(Spacer(1, 40))
+    elements.append(Paragraph("Note: This report is automatically generated by the IoT IDS ML Dashboard SOC Engine.", styles['Italic']))
 
-    c.save()
-    return pdf_path
-
+    doc.build(elements)
+    print(f"Report generated at {OUTPUT_PATH}")
 
 if __name__ == "__main__":
-    path = generate_pdf()
-    print("✅ PDF Generated:", path)
+    generate_report()
