@@ -4,14 +4,6 @@ SentinelIDS is a machine learning based Intrusion Detection System (IDS) for IoT
 
 The project is designed for academic, research, and authorized security lab use. It supports both dataset-based evaluation and live traffic monitoring in a controlled VMware lab.
 
-## Repository Description
-
-Use this as the GitHub repository description:
-
-```text
-Machine learning based IoT intrusion detection system with live packet capture, flow fusion scoring, SOC dashboard, incident logging, and PDF reporting.
-```
-
 ## Key Features
 
 - Dataset-based IDS testing using pre-trained machine learning models.
