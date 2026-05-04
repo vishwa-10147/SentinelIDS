@@ -1,226 +1,218 @@
-# 🛡️ IoT IDS + SOC Dashboard (Premium ML Edition)
-### *A Multi-Level Machine Learning–Based Intrusion Detection System for IoT Networks*
+# SentinelIDS
 
-[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
-[![SOC-Ready](https://img.shields.io/badge/SOC-Ready-red.svg)]()
+SentinelIDS is a machine learning based Intrusion Detection System (IDS) for IoT and lab network environments. It combines packet-level detection, flow-level analysis, rule-based risk scoring, and a Streamlit SOC dashboard to help monitor network activity, identify suspicious traffic, and generate actionable security insights.
 
-### *Advanced Real-Time Intrusion Detection & Security Operations Center (SOC) Intelligence*
+The project is designed for academic, research, and authorized security lab use. It supports both dataset-based evaluation and live traffic monitoring in a controlled VMware lab.
 
-This project is a high-performance **Machine Learning-driven Intrusion Detection System (IDS)** integrated with a premium **SOC-style Dashbord**. It provides comprehensive visibility into IoT network threats through real-time packet analysis, flow behavior modeling, and automated incident response orchestration.
+## Repository Description
 
-✅ **Latest update:** Native Windows VMnet packet capture is now supported (Kali + Metasploitable + Windows IDS on the same PC), including real-time packet timestamps and weighted fusion scoring.
+Use this as the GitHub repository description:
 
----
-
-## 🏗️ Architecture Overview
-
-```mermaid
-graph TD
-    subgraph "Data Acquisition Layer"
-        K[Kali Linux Capture] -->|tshark CSV| SF[VMware Shared Folder]
-        SF -->|live_capture.csv| WP[Windows SOC Pipeline]
-    end
-
-    subgraph "SOC Processing Engine"
-        WP --> FG[Flow Generator]
-        FG --> LB[Rule-Based Labeling]
-        LB --> ML[ML Prediction Engine]
-        ML --> FS[Fusion Scoring Engine]
-        FS --> IL[Incident Logger]
-    end
-
-    subgraph "Visualization & Response"
-        IL --> DB[Streamlit Dashboard]
-        DB -->|Network Graph| AG[Interactive Visuals]
-        DB -->|Auto-Gen| ST[SOC Tickets]
-        DB -->|Export| PDF[PDF SOC Reports]
-    end
+```text
+Machine learning based IoT intrusion detection system with live packet capture, flow fusion scoring, SOC dashboard, incident logging, and PDF reporting.
 ```
 
----
+## Key Features
 
-## 🚀 Key Features
+- Dataset-based IDS testing using pre-trained machine learning models.
+- Live packet capture support for VMware VMnet lab traffic.
+- Packet-level and flow-level threat detection pipeline.
+- Weighted fusion scoring that combines packet ML, flow ML, and rule-based risk.
+- Streamlit SOC dashboard for traffic visibility, incidents, severity trends, and reports.
+- Automated SOC ticket generation with priority levels.
+- PDF report generation for summarized detection results.
+- Device discovery and inventory support using ARP data.
+- Windows PowerShell scripts for easier setup and execution.
 
-### 💎 Premium SOC Dashboard
-- **Interactive Network Traffic Graph**: Visualize real-time connection nodes and threat paths.
-- **System Health Monitor**: Track CPU/RAM overhead of the IDS engine.
-- **Global SOC Visuals**: Comprehensive charts for attack distribution and severity trends.
+## System Overview
 
-### 🧠 Intelligent Detection (Level 1-5)
-- **Multi-Level IDS**: 
-  - **Dataset Mode**: TON_IoT benchmark testing.
-  - **Live Mode**: Real-time packet-level classification.
-  - **Flow Mode**: Advanced behavioral analysis (Level 4/5).
-- **Fusion Scoring**: Combines ML confidence with heuristic rules for high-fidelity alerts.
-- **Advanced Attack Labeling**: Specialized rules for Bruteforce, Portscan, DNS Tunneling, and more.
+```mermaid
+flowchart TD
+    A["Live Traffic or Dataset Input"] --> B["Packet Feature Extraction"]
+    B --> C["Packet ML Detection"]
+    B --> D["Flow Generation"]
+    D --> E["Flow ML Detection"]
+    C --> F["Fusion Risk Engine"]
+    E --> F
+    G["Rule-Based Heuristics"] --> F
+    F --> H["Incident Logs and SOC Tickets"]
+    H --> I["Streamlit SOC Dashboard"]
+    H --> J["PDF Reports"]
+```
 
-### 📋 Incident Management
-- **Automated SOC Tickets**: Self-generating tickets with P1-P4 priority levels.
-- **Ticket Lifecycle**: Full tracking (OPEN → INVESTIGATING → RESOLVED).
-- **PDF Reporting**: One-click professional SOC summary report generation for compliance and audits.
-
----
-
-## 📁 Project Structure
+## Project Structure
 
 ```text
 iot-ids-ml-dashboard/
-├── app/
-│   └── dashboard.py           # Premium Streamlit SOC Dashboard
-├── src/
-│   ├── flow_generator.py      # Core flow engine
-│   ├── soc_ticket_generator.py # Ticket automation
-│   ├── generate_pdf_report.py # Professional PDF reporting
-│   └── device_discovery.py    # Assets & Inventory management
-├── models/
-│   └── *.pkl                  # Pre-trained ML classifiers
-├── logs/                      # Incident & Ticket audit trails
-├── reports/                   # Generated SOC reports
-└── live_data/                 # Real-time capture feed
+|-- app/
+|   `-- dashboard.py              # Streamlit SOC dashboard
+|-- src/
+|   |-- capture_live_vmnet.py     # Windows VMnet packet capture
+|   |-- run_flow_soc_pipeline.py  # Flow analysis and SOC pipeline
+|   |-- apply_flow_fusion.py      # Fusion scoring logic
+|   |-- apply_risk_engine.py      # Risk and severity rules
+|   |-- soc_ticket_generator.py   # SOC ticket generation
+|   `-- generate_pdf_report.py    # PDF report generation
+|-- models/                       # Pre-trained ML model files
+|-- live_data/                    # Live packet capture input files
+|-- logs/                         # Detection logs and incidents
+|-- reports/                      # Generated reports
+|-- tests/                        # Test suite
+|-- requirements.txt              # Python dependencies
+`-- run_dashboard.ps1             # Dashboard launch script
 ```
 
----
+## Requirements
 
-## 🛠️ Quick Start
+- Python 3.9 or newer
+- Windows PowerShell for provided helper scripts
+- Npcap for Windows live capture mode
+- VMware Workstation or VMware Player for the single-PC lab setup
+- Kali Linux VM for attack simulation
+- Metasploitable VM or another intentionally vulnerable lab target
 
-### 1️⃣ Prerequisites
-- **Python 3.9+**
-- **Wireshark/Tshark** (on Kali Linux)
+Install Python dependencies:
 
-### 2️⃣ Installation
-```bash
-# Clone the repository
-git clone https://github.com/vishwa-10147/iot-ids-ml-dashboard.git
-cd iot-ids-ml-dashboard
-
-# Setup Virtual Environment
+```powershell
 python -m venv venv
 .\venv\Scripts\activate
-
-# Install Dependencies
 pip install -r requirements.txt
-pip install streamlit-agraph psutil reportlab
 ```
 
-### 3️⃣ Launch
+## Quick Start
+
+Clone the repository:
+
 ```powershell
-# One-click launch
+git clone https://github.com/vishwa-10147/SentinelIDS.git
+cd SentinelIDS
+```
+
+Create and activate a virtual environment:
+
+```powershell
+python -m venv venv
+.\venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Start the dashboard:
+
+```powershell
 .\run_dashboard.ps1
 ```
 
----
+Or start it manually:
 
-## 🌐 Live Capture Setup
-For real-time monitoring, deploy the capture agent on your sensor node (Kali Linux):
-
-```bash
-sudo tshark -i eth0 -a duration:60 -T fields \
--e frame.time_epoch -e ip.src -e ip.dst -e ip.proto \
--e tcp.srcport -e tcp.dstport \
--e udp.srcport -e udp.dstport \
--e frame.len \
--E header=y -E separator=, \
-> /mnt/hgfs/live_data/live_capture.csv
-```
-
----
-
-## 🪟 Windows VMnet Real-Time Mode (Single-PC Lab)
-
-This project now supports direct capture on the Windows host from VMware virtual adapters.
-
-### Lab Topology
-- Windows host: IDS + Dashboard
-- Kali VM: attacker
-- Metasploitable VM: victim server
-- All three on the same VMware network (example: VMnet1)
-
-### 1) One-time setup (Windows, Administrator PowerShell)
-```powershell
-cd iot-ids-ml-dashboard
-.\setup_windows_vmnet_lab.ps1
-```
-
-### 2) Start capture terminal (Windows)
-```powershell
-.\start_vmnet_capture.ps1 -InterfaceHint "VMware Network Adapter VMnet1" -UseModel -AlertThreshold 0.90
-```
-
-Professional alert levels in terminal output:
-- `✅ NORMAL` (model predicts normal)
-- `⚠️ SUSPICIOUS` (attack class but below threshold)
-- `🚨 CONFIRMED ALERT` (attack class and confidence >= threshold)
-
-### 3) Start continuous SOC pipeline terminal (Windows)
-```powershell
-.\start_soc_pipeline_loop.ps1 -IntervalSeconds 8
-```
-
-### 4) Start dashboard terminal (Windows)
 ```powershell
 streamlit run app/dashboard.py
 ```
 
-### 5) Generate attacks from Kali while dashboard is running
+The dashboard runs locally at:
+
+```text
+http://localhost:8501
+```
+
+## Live VMware Lab Mode
+
+SentinelIDS can monitor traffic from a VMware virtual network on the Windows host. A typical lab setup is:
+
+- Windows host: runs SentinelIDS and the dashboard.
+- Kali Linux VM: generates authorized test traffic.
+- Metasploitable VM: acts as the vulnerable target.
+- All systems connected to the same VMware VMnet network.
+
+Run the one-time Windows setup from an Administrator PowerShell:
+
+```powershell
+.\setup_windows_vmnet_lab.ps1
+```
+
+Start live packet capture:
+
+```powershell
+.\start_vmnet_capture.ps1 -InterfaceHint "VMware Network Adapter VMnet1" -UseModel -AlertThreshold 0.90
+```
+
+Start the continuous SOC pipeline:
+
+```powershell
+.\start_soc_pipeline_loop.ps1 -IntervalSeconds 8
+```
+
+Start the dashboard:
+
+```powershell
+streamlit run app/dashboard.py
+```
+
+Generate authorized test traffic from Kali:
+
 ```bash
-ping -c 20 <METASPLOITABLE_IP>
-nmap -sS -Pn <METASPLOITABLE_IP>
-telnet <METASPLOITABLE_IP> 23
+ping -c 20 <TARGET_IP>
+nmap -sS -Pn <TARGET_IP>
+telnet <TARGET_IP> 23
 ```
 
-### Real-time verification in dashboard (Tab 2)
-- `Last Packet Age (sec)` should stay low
-- `Last Packet Time` updates continuously
-- `packet.registered_at` column shows packet registration timestamp
+## Detection Pipeline
 
-### Output files generated
-- `live_data/live_capture.csv`
-- `logs/live_scored_packets.csv`
-- `logs/live_flows_final.csv`
-- `logs/flow_incidents.csv`
+SentinelIDS processes traffic in multiple stages:
 
----
+1. Packet capture or dataset input is converted into structured features.
+2. Packet-level ML detection classifies individual network records.
+3. Flow generation groups related packet activity.
+4. Flow-level ML detection identifies suspicious behavior patterns.
+5. Rule-based heuristics add risk context for known attack indicators.
+6. Fusion scoring produces a final severity score for SOC review.
+7. Incidents, tickets, dashboards, and reports are generated from the results.
 
-## 🧮 Fusion Scoring (Updated)
+The final flow score uses this weighting:
 
-Final flow severity now uses weighted fusion:
-
-$$
-	ext{Final Score} = 0.4\times\text{Packet ML} + 0.4\times\text{Flow ML} + 0.2\times\text{Rule Engine}
-$$
-
-Where:
-- **Packet ML** = packet-level risk aggregated per flow from `logs/live_scored_packets.csv`
-- **Flow ML** = confidence from `logs/live_flows_predicted.csv`
-- **Rule Engine** = max of base + advanced rule scores
-
-Saved output: `logs/live_flows_final.csv`
-
----
-
-## 👨‍💻 Research & Development
-**Author**: Vishwa (Cybersecurity Researcher)  
-**Version**: 1.1.0-Premium  
-**Status**: Active Research Project
-
-### 📖 Citation
-```bibtex
-@software{vishwa2025iot_ids_premium,
-  author = {Vishwa},
-  title = {IoT IDS + SOC Dashboard: Premium ML-Based Security Operations},
-  year = {2025},
-  version = {1.1.0},
-  url = {https://github.com/vishwa-10147/iot-ids-ml-dashboard}
-}
+```text
+Final Score = 0.4 * Packet ML + 0.4 * Flow ML + 0.2 * Rule Engine
 ```
 
----
+## Important Output Files
 
-## 📌 Acknowledgments
-Special thanks to the **UNSW Sydney** for the TON_IoT dataset and the open-source community for **Streamlit** and **Scikit-learn**.
+| File | Purpose |
+| --- | --- |
+| `live_data/live_capture.csv` | Live packet capture input |
+| `logs/live_scored_packets.csv` | Packet-level scored output |
+| `logs/live_flows_final.csv` | Final flow-level fusion results |
+| `logs/flow_incidents.csv` | Incident records generated by the SOC pipeline |
+| `logs/soc_tickets.csv` | Generated SOC tickets |
+| `reports/` | Exported PDF reports |
 
----
-**⚠️ Disclaimer:** This software is provided for educational and research purposes only. Users are responsible for ensuring compliance with all applicable laws and regulations regarding network monitoring and data collection in their jurisdiction.
-*Disclaimer: This tool is for authorized security research only.*
+## Testing
+
+Run the test suite with:
+
+```powershell
+.\run_tests.ps1
+```
+
+Or:
+
+```powershell
+python run_tests.py
+```
+
+## Documentation
+
+Additional documentation is included in the repository:
+
+- `QUICK_START.md` for setup and usage steps.
+- `PROJECT_DOCUMENTATION.md` for technical project details.
+- `DEPLOYMENT_GUIDE.md` for deployment notes.
+- `TESTING_GUIDE.md` for testing guidance.
+- `SECURITY_GUIDE.md` for security recommendations.
+- `RUNBOOK_REALTIME_VMWARE.md` for the VMware live monitoring workflow.
+
+## Security and Legal Notice
+
+This project is intended only for authorized security testing, education, and research. Do not use it to monitor networks or systems without permission. Users are responsible for following applicable laws, institutional policies, and ethical security practices.
+
+## License
+
+This project is provided for educational and research purposes. Check the repository license file, if present, before using or distributing it in another project.
