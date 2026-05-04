@@ -10,6 +10,8 @@
 
 This project is a high-performance **Machine Learning-driven Intrusion Detection System (IDS)** integrated with a premium **SOC-style Dashbord**. It provides comprehensive visibility into IoT network threats through real-time packet analysis, flow behavior modeling, and automated incident response orchestration.
 
+✅ **Latest update:** Native Windows VMnet packet capture is now supported (Kali + Metasploitable + Windows IDS on the same PC), including real-time packet timestamps and weighted fusion scoring.
+
 ---
 
 ## 🏗️ Architecture Overview
@@ -122,6 +124,79 @@ sudo tshark -i eth0 -a duration:60 -T fields \
 -E header=y -E separator=, \
 > /mnt/hgfs/live_data/live_capture.csv
 ```
+
+---
+
+## 🪟 Windows VMnet Real-Time Mode (Single-PC Lab)
+
+This project now supports direct capture on the Windows host from VMware virtual adapters.
+
+### Lab Topology
+- Windows host: IDS + Dashboard
+- Kali VM: attacker
+- Metasploitable VM: victim server
+- All three on the same VMware network (example: VMnet1)
+
+### 1) One-time setup (Windows, Administrator PowerShell)
+```powershell
+cd iot-ids-ml-dashboard
+.\setup_windows_vmnet_lab.ps1
+```
+
+### 2) Start capture terminal (Windows)
+```powershell
+.\start_vmnet_capture.ps1 -InterfaceHint "VMware Network Adapter VMnet1" -UseModel -AlertThreshold 0.90
+```
+
+Professional alert levels in terminal output:
+- `✅ NORMAL` (model predicts normal)
+- `⚠️ SUSPICIOUS` (attack class but below threshold)
+- `🚨 CONFIRMED ALERT` (attack class and confidence >= threshold)
+
+### 3) Start continuous SOC pipeline terminal (Windows)
+```powershell
+.\start_soc_pipeline_loop.ps1 -IntervalSeconds 8
+```
+
+### 4) Start dashboard terminal (Windows)
+```powershell
+streamlit run app/dashboard.py
+```
+
+### 5) Generate attacks from Kali while dashboard is running
+```bash
+ping -c 20 <METASPLOITABLE_IP>
+nmap -sS -Pn <METASPLOITABLE_IP>
+telnet <METASPLOITABLE_IP> 23
+```
+
+### Real-time verification in dashboard (Tab 2)
+- `Last Packet Age (sec)` should stay low
+- `Last Packet Time` updates continuously
+- `packet.registered_at` column shows packet registration timestamp
+
+### Output files generated
+- `live_data/live_capture.csv`
+- `logs/live_scored_packets.csv`
+- `logs/live_flows_final.csv`
+- `logs/flow_incidents.csv`
+
+---
+
+## 🧮 Fusion Scoring (Updated)
+
+Final flow severity now uses weighted fusion:
+
+$$
+	ext{Final Score} = 0.4\times\text{Packet ML} + 0.4\times\text{Flow ML} + 0.2\times\text{Rule Engine}
+$$
+
+Where:
+- **Packet ML** = packet-level risk aggregated per flow from `logs/live_scored_packets.csv`
+- **Flow ML** = confidence from `logs/live_flows_predicted.csv`
+- **Rule Engine** = max of base + advanced rule scores
+
+Saved output: `logs/live_flows_final.csv`
 
 ---
 

@@ -57,6 +57,68 @@ cp /tmp/arp_table_kali.csv /mnt/hgfs/live_data/arp_table_kali.csv
 
 ---
 
+## 🪟 Setup Live Packet Capture (Windows VMnet + Scapy)
+
+Use this mode when traffic is between **Kali VM → Metasploitable VM** and you want Windows IDS to capture directly from VMware virtual adapters.
+
+### Step 1: Install Npcap
+- Download: https://nmap.org/npcap/
+- During install, enable:
+   - Install Npcap in WinPcap API-compatible mode
+   - Support raw 802.11 traffic
+   - Install Npcap loopback adapter
+
+### Step 2: Find VMware adapter
+```powershell
+ipconfig
+```
+Look for adapter names like `VMware Network Adapter VMnet1`.
+
+### Step 3: Install Scapy
+```powershell
+pip install scapy
+```
+
+### Step 4: List interfaces from Python
+```powershell
+python src/capture_live_vmnet.py --list-ifaces
+```
+
+### Step 5: Start live capture to pipeline CSV
+```powershell
+# Run PowerShell as Administrator
+python src/capture_live_vmnet.py --iface-hint "VMware Network Adapter VMnet1"
+```
+
+This writes packet features to `live_data/live_capture.csv` using the same columns required by:
+- `src/predict_live_traffic.py`
+- `src/flow_generator.py`
+
+### Step 6 (Optional): Real-time packet ML alerts
+```powershell
+python src/capture_live_vmnet.py --iface-hint "VMware Network Adapter VMnet1" --model models/live_ids_model.pkl
+```
+When model output is `1`, the script prints `🚨 ATTACK DETECTED` and appends to `logs/live_detections.csv`.
+
+### Step 7: Run your SOC pipeline
+```powershell
+python src/run_flow_soc_pipeline.py
+```
+
+Fusion scoring now uses:
+- `0.4 × packet_ml_confidence_%` (from `logs/live_scored_packets.csv`)
+- `0.4 × flow_ml_confidence_%` (from flow model)
+- `0.2 × rule_engine_score` (max of base + advanced rule scores)
+
+Final output is saved in `logs/live_flows_final.csv`.
+
+### Quick troubleshooting
+- No packets: run terminal as Administrator, verify Npcap is installed, and confirm both VMs are on the same VMnet.
+- Wrong adapter: run `python src/capture_live_vmnet.py --list-ifaces` and pass exact name with `--iface`.
+- Empty capture: generate traffic from Kali (`ping`, `nmap -sS`, `telnet`) to Metasploitable while capture is running.
+
+---
+
 ## 🎯 Using the Dashboard
 
 ### Tab 1: Dataset IDS
@@ -197,6 +259,57 @@ python run_tests.py
 - [ ] SOC pipeline tested
 - [ ] Security configured (optional but recommended)
 - [ ] Tests passing (run `python run_tests.py`)
+
+---
+
+## 🧪 Single-PC VMware Lab: Full Test Procedure
+
+This setup matches your environment:
+- Windows host = IDS + Dashboard
+- Kali VM = attacker
+- Metasploitable VM = target server
+- All on same PC, same VMware virtual network
+
+### 1) One-time setup on Windows
+```powershell
+# Run PowerShell as Administrator
+.\setup_windows_vmnet_lab.ps1
+```
+
+### 2) Terminal A (Windows): Start packet capture
+```powershell
+# Capture + real-time packet ML alerts
+.\start_vmnet_capture.ps1 -InterfaceHint "VMware Network Adapter VMnet1" -UseModel
+```
+
+### 3) Terminal B (Windows): Start flow SOC fusion loop
+```powershell
+.\start_soc_pipeline_loop.ps1 -IntervalSeconds 8
+```
+
+### 4) (Optional) Terminal C (Windows): Start dashboard
+```powershell
+.\run_dashboard.ps1
+```
+
+### 5) Kali VM: Launch attack simulation against Metasploitable
+```bash
+# Replace with Metasploitable IP
+ping <metasploitable_ip>
+nmap -sS <metasploitable_ip>
+telnet <metasploitable_ip> 23
+```
+
+### 6) Verify detections on Windows
+Check these outputs:
+- `live_data/live_capture.csv` (incoming packets)
+- `logs/live_scored_packets.csv` (packet ML + risk)
+- `logs/live_flows_final.csv` (0.4/0.4/0.2 fusion score)
+- `logs/flow_incidents.csv` (SOC incident records)
+
+### 7) Stop test
+- Stop all Windows terminals with `Ctrl+C`
+- Stop attack commands in Kali
 
 ---
 

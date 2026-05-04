@@ -9,6 +9,13 @@ LIVE_MODEL_PATH = "models/live_ids_model.pkl"
 LIVE_DATA_PATH = "live_data/live_capture.csv"
 OUTPUT_PATH = "logs/live_scored_packets.csv"
 
+
+def safe_read_csv(path):
+    try:
+        return pd.read_csv(path)
+    except Exception:
+        return pd.read_csv(path, engine="python", on_bad_lines="skip")
+
 def main():
     if not os.path.exists(LIVE_MODEL_PATH):
         print("❌ Live model missing. Train it first.")
@@ -19,7 +26,7 @@ def main():
         return
 
     model = joblib.load(LIVE_MODEL_PATH)
-    df = pd.read_csv(LIVE_DATA_PATH)
+    df = safe_read_csv(LIVE_DATA_PATH)
 
     df = df.dropna(subset=["ip.src", "ip.dst"], how="any")
     if df.empty:

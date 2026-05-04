@@ -8,8 +8,15 @@ import psutil
 import pandas as pd
 import streamlit as st
 from datetime import datetime
-from streamlit_autorefresh import st_autorefresh
 from streamlit_agraph import agraph, Node, Edge, Config
+from streamlit_autorefresh import st_autorefresh
+
+# ==========================================================
+# WORKING DIRECTORY SETUP (FIX FOR PATH RESOLUTION)
+# ==========================================================
+# Ensure we're running from project root
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+os.chdir(PROJECT_ROOT)
 
 # ==========================================================
 # CONFIG: DEVICE NAMING (Manual Override)
@@ -510,6 +517,9 @@ with tab1:
 # TAB 2: Live Packet IDS
 # ==========================================================
 with tab2:
+    # Auto-refresh every 5 seconds
+    st_autorefresh(interval=5000, key="live_refresh_key_packets")
+    
     st.subheader("Live Packet IDS (Real-Time SOC Monitoring)")
     st.write("Kali captures traffic → CSV shared to Windows → ML detects suspicious packets.")
 
@@ -520,11 +530,10 @@ with tab2:
         run_device_discovery()
         st.rerun()
 
-    st.divider()
+    if st.button("🔄 Refresh Packet View Now", key="refresh_packets_tab2"):
+        st.rerun()
 
-    auto_refresh_on = st.checkbox("✅ Auto Refresh Packet View (5 sec)", value=True)
-    if auto_refresh_on:
-        st_autorefresh(interval=5000, key="live_refresh_key_packets")
+    st.divider()
 
     alert_threshold = st.slider("🚨 Alert if Suspicious Packets >", 10, 5000, 100)
     high_risk_threshold = st.slider("🔥 High-Risk Probability Alert (%)", 50, 100, 80)
@@ -533,6 +542,24 @@ with tab2:
     if not os.path.exists(LIVE_DATA_PATH):
         st.error("❌ live_capture.csv not found in live_data/. Start Kali capture first.")
         st.stop()
+
+    # ===== DEBUG INFO =====
+    with st.expander("🐛 Debug Info (File Status)"):
+        st.write(f"**Current Working Dir:** `{os.getcwd()}`")
+        st.write(f"**Reading from:** `{os.path.abspath(LIVE_DATA_PATH)}`")
+        if os.path.exists(LIVE_DATA_PATH):
+            file_size = os.path.getsize(LIVE_DATA_PATH)
+            mod_time = os.path.getmtime(LIVE_DATA_PATH)
+            mod_datetime = datetime.fromtimestamp(mod_time).strftime("%Y-%m-%d %H:%M:%S")
+            st.write(f"**File Size:** {file_size} bytes")
+            st.write(f"**Last Modified:** {mod_datetime}")
+            try:
+                temp_df = safe_read_csv(LIVE_DATA_PATH)
+                st.write(f"**CSV Rows (lines):** {len(temp_df)}")
+            except Exception as e:
+                st.error(f"⚠️ CSV Parse Error: {str(e)[:200]}")
+                st.write("**Action:** This happens when packet data contains commas. Capture script is working, but CSV needs cleanup.")
+        st.write(f"**Refresh Button:** Click 'Refresh Packet View Now' every 5-10 seconds to see live updates")
 
     if not os.path.exists(LIVE_MODEL_PATH):
         st.error("❌ live_ids_model.pkl not found. Train live model first.")
@@ -548,6 +575,17 @@ with tab2:
     for col in ["tcp.srcport", "tcp.dstport", "udp.srcport", "udp.dstport"]:
         if col in live_df.columns:
             live_df[col] = live_df[col].fillna(0)
+
+    if "frame.time_epoch" in live_df.columns:
+        live_df["frame.time_epoch"] = pd.to_numeric(live_df["frame.time_epoch"], errors="coerce")
+        live_df["packet_time"] = pd.to_datetime(live_df["frame.time_epoch"], unit="s", errors="coerce")
+    else:
+        live_df["packet_time"] = pd.NaT
+
+    if "packet.registered_at" in live_df.columns:
+        live_df["packet_entered_at"] = live_df["packet.registered_at"].astype(str)
+    else:
+        live_df["packet_entered_at"] = live_df["packet_time"].dt.strftime("%Y-%m-%d %H:%M:%S").fillna("NA")
 
     if "ip.proto" in live_df.columns:
         live_df["ip.proto"] = live_df["ip.proto"].fillna(0)
@@ -583,6 +621,15 @@ with tab2:
     normal_packets = int((live_df["prediction"] == 0).sum())
     high_risk_count = int((live_df["risk_score_%"] >= high_risk_threshold).sum())
 
+    latest_packet_time = live_df["packet_time"].max() if "packet_time" in live_df.columns else pd.NaT
+    if pd.notna(latest_packet_time):
+        packet_age_sec = max(0.0, (datetime.now() - latest_packet_time.to_pydatetime()).total_seconds())
+        packet_age_label = round(packet_age_sec, 2)
+        latest_packet_label = latest_packet_time.strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        packet_age_label = "NA"
+        latest_packet_label = "NA"
+
     save_live_logs(live_df)
 
     st.info(f"Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -595,11 +642,13 @@ with tab2:
     if high_risk_count > 0:
         st.warning(f"🔥 High Risk Packets: {high_risk_count} packets >= {high_risk_threshold}% risk score")
 
-    m1, m2, m3, m4 = st.columns(4)
+    m1, m2, m3, m4, m5, m6 = st.columns(6)
     m1.metric("Total Packets", total_packets)
     m2.metric("Suspicious", suspicious_packets)
     m3.metric("Normal", normal_packets)
     m4.metric("High-Risk", high_risk_count)
+    m5.metric("Last Packet Age (sec)", packet_age_label)
+    m6.metric("Last Packet Time", latest_packet_label)
 
     st.divider()
     st.subheader("🔥 Top 5 High-Risk Packets (SOC Priority View)")
@@ -619,7 +668,7 @@ with tab2:
     st.subheader("Live Predictions Table")
 
     show_cols2 = [
-        "frame.time_epoch", "src_device", "ip.src",
+        "frame.time_epoch", "packet_entered_at", "packet_time", "src_device", "ip.src",
         "dst_device", "ip.dst",
         "ip.proto",
         "tcp.srcport", "tcp.dstport",
@@ -645,6 +694,9 @@ with tab2:
 # TAB 3: FLOW IDS Monitoring (Level 4/5)
 # ==========================================================
 with tab3:
+    # Auto-refresh every 8 seconds (synced with SOC pipeline interval)
+    st_autorefresh(interval=8000, key="live_refresh_key_flows")
+    
     st.subheader(" Flow IDS Monitoring (SOC View)")
     st.write("Flow behavior analysis + Flow ML prediction + Fusion scoring + Level 5 Advanced rules.")
 
@@ -655,29 +707,11 @@ with tab3:
         run_device_discovery()
         st.rerun()
 
+    if st.button("🔄 Refresh Flow View Now", key="refresh_flow_tab3"):
+        st.rerun()
+
     st.divider()
     st.subheader("⚙️ Flow SOC Automation")
-
-    col_auto1, col_auto2 = st.columns(2)
-    with col_auto1:
-        auto_run_pipeline = st.checkbox("✅ Auto Run Flow SOC Pipeline (every 30 sec)", value=False)
-    with col_auto2:
-        auto_refresh_flow = st.checkbox("✅ Auto Refresh Flow View (5 sec)", value=True)
-
-    if auto_run_pipeline:
-        st_autorefresh(interval=30000, key="auto_flow_soc_pipeline_refresh")
-        if can_run_pipeline(lock_seconds=25):
-            with st.spinner("Running Flow SOC Pipeline..."):
-                # SECURITY FIX: Use subprocess instead of os.system()
-                subprocess.run(
-                    [sys.executable, "src/run_flow_soc_pipeline.py"],
-                    capture_output=True,
-                    text=True,
-                    timeout=120
-                )
-
-    if auto_refresh_flow:
-        st_autorefresh(interval=5000, key="flow_refresh_key")
 
     st.divider()
 

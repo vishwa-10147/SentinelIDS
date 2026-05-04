@@ -3,6 +3,7 @@ import sys
 import subprocess
 
 SCRIPTS = [
+    "src/apply_risk_engine.py",
     "src/flow_generator.py",
     "src/label_live_flows.py",
     "src/predict_flow_live.py",

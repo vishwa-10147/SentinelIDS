@@ -4,6 +4,7 @@ import pandas as pd
 FLOW_PRED_PATH = "logs/live_flows_predicted.csv"
 FLOW_RULE_PATH = "logs/live_flows_labeled.csv"
 FLOW_ADV_PATH  = "logs/live_flows_advanced_labeled.csv"
+PACKET_SCORED_PATH = "logs/live_scored_packets.csv"
 
 FLOW_FINAL_PATH = "logs/live_flows_final.csv"
 
@@ -25,6 +26,17 @@ def safe_read_csv(path):
         return pd.read_csv(path)
     except Exception:
         return pd.read_csv(path, engine="python", on_bad_lines="skip")
+
+
+def build_flow_id_from_packet_row(row):
+    src_ip = str(row.get("ip.src", "")).strip()
+    dst_ip = str(row.get("ip.dst", "")).strip()
+    proto = str(row.get("ip.proto", "")).strip()
+
+    if not src_ip or not dst_ip:
+        return ""
+
+    return f"{src_ip} -> {dst_ip} | proto={proto}"
 
 
 def main():
@@ -86,19 +98,42 @@ def main():
     df["flow_threat_score"] = pd.to_numeric(df["flow_threat_score"], errors="coerce").fillna(0)
     df["advanced_flow_threat_score"] = pd.to_numeric(df["advanced_flow_threat_score"], errors="coerce").fillna(0)
 
-    # Convert ML confidence to number
+    # Convert Flow ML confidence to number
     df["flow_ml_confidence_%"] = pd.to_numeric(df["flow_ml_confidence_%"], errors="coerce").fillna(0)
 
-    # Final Fusion Score
-    # Weight idea:
-    # - ML confidence contributes up to 40 points
-    # - Rule engine score contributes up to 30 points
-    # - Advanced score contributes up to 40 points
-    df["ml_score"] = (df["flow_ml_confidence_%"] / 100) * 40
-    df["rule_score"] = (df["flow_threat_score"] / 100) * 30
-    df["advanced_score"] = (df["advanced_flow_threat_score"] / 100) * 40
+    # Packet ML score (from packet-level scoring output)
+    packet_scored = safe_read_csv(PACKET_SCORED_PATH)
+    if not packet_scored.empty and "ml_risk_%" in packet_scored.columns:
+        packet_scored["packet_ml_score"] = pd.to_numeric(packet_scored["ml_risk_%"], errors="coerce").fillna(0)
+        packet_scored["flow_id"] = packet_scored.apply(build_flow_id_from_packet_row, axis=1)
+        packet_scored = packet_scored[packet_scored["flow_id"] != ""]
 
-    df["final_flow_score"] = (df["ml_score"] + df["rule_score"] + df["advanced_score"]).round(2)
+        packet_flow = (
+            packet_scored.groupby("flow_id", as_index=False)["packet_ml_score"]
+            .mean()
+            .rename(columns={"packet_ml_score": "packet_ml_confidence_%"})
+        )
+
+        df = df.merge(packet_flow, on="flow_id", how="left")
+    else:
+        df["packet_ml_confidence_%"] = pd.NA
+
+    # Fallback when packet-level score is unavailable
+    df["packet_ml_confidence_%"] = pd.to_numeric(df["packet_ml_confidence_%"], errors="coerce")
+    df["packet_ml_confidence_%"] = df["packet_ml_confidence_%"].fillna(df["flow_ml_confidence_%"])
+
+    # Rule engine score combines base + advanced rule engines
+    df["rule_engine_score"] = df[["flow_threat_score", "advanced_flow_threat_score"]].max(axis=1)
+
+    # Final Fusion Score (0-100)
+    # 0.4 Packet ML + 0.4 Flow ML + 0.2 Rule Engine
+    df["packet_ml_component"] = 0.40 * df["packet_ml_confidence_%"]
+    df["flow_ml_component"] = 0.40 * df["flow_ml_confidence_%"]
+    df["rule_component"] = 0.20 * df["rule_engine_score"]
+
+    df["final_flow_score"] = (
+        df["packet_ml_component"] + df["flow_ml_component"] + df["rule_component"]
+    ).round(2)
     df["final_severity"] = df["final_flow_score"].apply(severity_from_score)
 
     # Output columns
@@ -118,11 +153,21 @@ def main():
         "advanced_flow_threat_score",
 
         "flow_ml_prediction",
+        "packet_ml_confidence_%",
         "flow_ml_confidence_%",
+        "rule_engine_score",
+        "packet_ml_component",
+        "flow_ml_component",
+        "rule_component",
 
         "final_flow_score",
-        "final_severity"
+        "final_severity",
+        "flow_threat_score"
     ]
+
+    # compatibility alias for downstream scripts
+    df["rule_threat_score"] = df["rule_engine_score"]
+    final_cols.append("rule_threat_score")
 
     for c in final_cols:
         if c not in df.columns:
